@@ -36,10 +36,6 @@ export default async function HomePage() {
           </div>
         </header>
 
-      
-
-       
-
         <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {freshSchedulers.map((scheduler) => (
             <Link key={scheduler.id} href={`/wallet/${scheduler.id}`} className="group block transition hover:-translate-y-1">
