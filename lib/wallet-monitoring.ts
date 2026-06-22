@@ -1,7 +1,36 @@
 import "server-only";
 
 import { DEFAULT_WALLET_SCHEDULER } from "./defaults";
+import { getSupabaseAdmin } from "./supabase";
 import type { ActivityLog, WalletScheduler } from "./types";
+
+type MonitorRecord = {
+  id: string;
+  name: string;
+  corporate_name: string;
+  agency_id: string;
+  current_balance: number;
+  statement_balance: number;
+  max_balance: number;
+  alert_threshold: number;
+  alert_email: string;
+  check_interval_seconds: number;
+  checks_run: number;
+  alerts_sent: number;
+  is_running: boolean;
+  last_checked_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type LogRecord = {
+  id: string;
+  scheduler_id: string;
+  title: string;
+  detail: string;
+  level: ActivityLog["level"];
+  created_at: string;
+};
 
 const globalForMonitor = globalThis as typeof globalThis & {
   __walletMonitorTimers?: Map<string, ReturnType<typeof setInterval>>;
@@ -31,6 +60,77 @@ const fallbackStore =
 
 globalForMonitor.__walletMonitorStore = fallbackStore;
 
+function toScheduler(record: MonitorRecord): WalletScheduler {
+  return {
+    id: record.id,
+    name: record.name,
+    corporateName: record.corporate_name,
+    agencyId: record.agency_id,
+    currentBalance: Number(record.current_balance),
+    statementBalance: Number(record.statement_balance),
+    maxBalance: Number(record.max_balance),
+    alertThreshold: Number(record.alert_threshold),
+    alertEmail: record.alert_email,
+    checkIntervalSeconds: Number(record.check_interval_seconds),
+    checksRun: Number(record.checks_run),
+    alertsSent: Number(record.alerts_sent),
+    isRunning: record.is_running,
+    lastCheckedAt: record.last_checked_at,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at,
+  };
+}
+
+function toSchedulerRow(scheduler: WalletScheduler) {
+  return {
+    id: scheduler.id,
+    name: scheduler.name,
+    corporate_name: scheduler.corporateName,
+    agency_id: scheduler.agencyId,
+    current_balance: scheduler.currentBalance,
+    statement_balance: scheduler.statementBalance,
+    max_balance: scheduler.maxBalance,
+    alert_threshold: scheduler.alertThreshold,
+    alert_email: scheduler.alertEmail,
+    check_interval_seconds: scheduler.checkIntervalSeconds,
+    checks_run: scheduler.checksRun,
+    alerts_sent: scheduler.alertsSent,
+    is_running: scheduler.isRunning,
+    last_checked_at: scheduler.lastCheckedAt,
+    created_at: scheduler.createdAt,
+    updated_at: scheduler.updatedAt,
+  };
+}
+
+function toLog(record: LogRecord): ActivityLog {
+  return {
+    id: record.id,
+    schedulerId: record.scheduler_id,
+    title: record.title,
+    detail: record.detail,
+    level: record.level,
+    createdAt: record.created_at,
+  };
+}
+
+function syncFallbackScheduler(scheduler: WalletScheduler) {
+  fallbackStore.schedulers.set(scheduler.id, { ...scheduler });
+}
+
+function syncFallbackSchedulers(schedulers: WalletScheduler[]) {
+  fallbackStore.schedulers.clear();
+  for (const scheduler of schedulers) {
+    syncFallbackScheduler(scheduler);
+  }
+}
+
+function syncFallbackLogs(schedulerId: string, logs: ActivityLog[]) {
+  fallbackStore.logs.set(
+    schedulerId,
+    logs.map((item) => ({ ...item })),
+  );
+}
+
 function formatMoney(value: number) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -56,8 +156,14 @@ function getFallbackLogs(schedulerId?: string): ActivityLog[] {
 }
 
 function ensureFallbackSeeded() {
-  if (fallbackStore.logs.size > 0) {
+  if (fallbackStore.schedulers.size > 0 && fallbackStore.logs.size > 0) {
     return;
+  }
+
+  if (fallbackStore.schedulers.size === 0) {
+    fallbackStore.schedulers.set(DEFAULT_WALLET_SCHEDULER.id, {
+      ...DEFAULT_WALLET_SCHEDULER,
+    });
   }
 
   const seedLog: ActivityLog = {
@@ -72,20 +178,102 @@ function ensureFallbackSeeded() {
   fallbackStore.logs.set(seedLog.schedulerId, [seedLog]);
 }
 
+async function ensureSupabaseSeeded(db: ReturnType<typeof getSupabaseAdmin>) {
+  if (!db) {
+    return;
+  }
+
+  const { count, error } = await db
+    .from("wallet_schedulers")
+    .select("id", { count: "exact", head: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if ((count ?? 0) > 0) {
+    return;
+  }
+
+  const { error: insertError } = await db.from("wallet_schedulers").upsert([
+    toSchedulerRow(DEFAULT_WALLET_SCHEDULER),
+  ]);
+
+  if (insertError) {
+    throw new Error(insertError.message);
+  }
+}
+
+async function fetchSchedulersFromDb() {
+  const db = getSupabaseAdmin();
+  if (!db) {
+    ensureFallbackSeeded();
+    return getFallbackSchedulers();
+  }
+
+  try {
+    await ensureSupabaseSeeded(db);
+
+    const { data, error } = await db
+      .from("wallet_schedulers")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const schedulers = (data ?? []).map((item) => toScheduler(item as MonitorRecord));
+    if (schedulers.length > 0) {
+      syncFallbackSchedulers(schedulers);
+    }
+
+    return schedulers;
+  } catch {
+    ensureFallbackSeeded();
+    return getFallbackSchedulers();
+  }
+}
+
+async function fetchSchedulerLogsFromDb(schedulerId: string) {
+  const db = getSupabaseAdmin();
+  if (!db) {
+    ensureFallbackSeeded();
+    return getFallbackLogs(schedulerId);
+  }
+
+  try {
+    const { data, error } = await db
+      .from("wallet_scheduler_logs")
+      .select("*")
+      .eq("scheduler_id", schedulerId)
+      .order("created_at", { ascending: false })
+      .limit(25);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const logs = (data ?? []).map((item) => toLog(item as LogRecord));
+    syncFallbackLogs(schedulerId, logs);
+    return logs;
+  } catch {
+    ensureFallbackSeeded();
+    return getFallbackLogs(schedulerId);
+  }
+}
+
 export async function listSchedulers() {
-  ensureFallbackSeeded();
-  return getFallbackSchedulers();
+  return fetchSchedulersFromDb();
 }
 
 export async function getSchedulerById(id: string) {
-  ensureFallbackSeeded();
-  const schedulers = getFallbackSchedulers();
+  const schedulers = await fetchSchedulersFromDb();
   return schedulers.find((scheduler) => scheduler.id === id) ?? null;
 }
 
 export async function getSchedulerLogs(id: string) {
-  ensureFallbackSeeded();
-  return getFallbackLogs(id);
+  return fetchSchedulerLogsFromDb(id);
 }
 
 export async function upsertScheduler(
@@ -108,6 +296,53 @@ export async function upsertScheduler(
     >
   >,
 ) {
+  const db = getSupabaseAdmin();
+  const nextUpdatedAt = new Date().toISOString();
+
+  if (db) {
+    try {
+      await ensureSupabaseSeeded(db);
+
+      const { data: currentRow, error: readError } = await db
+        .from("wallet_schedulers")
+        .select("*")
+        .eq("id", schedulerId)
+        .maybeSingle();
+
+      if (readError) {
+        throw new Error(readError.message);
+      }
+
+      const existing =
+        currentRow !== null
+          ? toScheduler(currentRow as MonitorRecord)
+          : fallbackStore.schedulers.get(schedulerId) ?? null;
+
+      if (!existing) {
+        return null;
+      }
+
+      const nextScheduler = {
+        ...existing,
+        ...patch,
+        updatedAt: nextUpdatedAt,
+      };
+
+      const { error: writeError } = await db.from("wallet_schedulers").upsert([
+        toSchedulerRow(nextScheduler),
+      ]);
+
+      if (writeError) {
+        throw new Error(writeError.message);
+      }
+
+      syncFallbackScheduler(nextScheduler);
+      return { ...nextScheduler };
+    } catch {
+      // Fall through to fallback memory below.
+    }
+  }
+
   const existing = fallbackStore.schedulers.get(schedulerId) ?? null;
   if (!existing) {
     return null;
@@ -116,7 +351,7 @@ export async function upsertScheduler(
   const nextScheduler = {
     ...existing,
     ...patch,
-    updatedAt: new Date().toISOString(),
+    updatedAt: nextUpdatedAt,
   };
 
   fallbackStore.schedulers.set(schedulerId, nextScheduler);
@@ -130,6 +365,34 @@ export async function addSchedulerLog(
   },
 ) {
   const createdAt = entry.createdAt ?? new Date().toISOString();
+  const db = getSupabaseAdmin();
+
+  if (db) {
+    try {
+      const { data, error } = await db
+        .from("wallet_scheduler_logs")
+        .insert({
+          scheduler_id: schedulerId,
+          title: entry.title,
+          detail: entry.detail,
+          level: entry.level,
+          created_at: createdAt,
+        })
+        .select("*")
+        .single();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      const log = toLog(data as LogRecord);
+      const currentLogs = fallbackStore.logs.get(schedulerId) ?? [];
+      fallbackStore.logs.set(schedulerId, [log, ...currentLogs]);
+      return log;
+    } catch {
+      // Fall through to fallback memory below.
+    }
+  }
 
   ensureFallbackSeeded();
   const log = {
