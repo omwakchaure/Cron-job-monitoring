@@ -38,4 +38,3 @@ export const DEFAULT_WALLET_SCHEDULER: Pick<
   createdAt: new Date("2026-06-19T14:00:00+05:30").toISOString(),
   updatedAt: new Date("2026-06-19T14:32:00+05:30").toISOString(),
 };
-

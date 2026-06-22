@@ -1,15 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --background: #090807;
-  --foreground: #f3efe8;
+  --background: 225 65% 4%;
+  --foreground: 220 24% 96%;
+  --card: 223 52% 6%;
+  --card-foreground: 220 24% 96%;
+  --popover: 223 52% 6%;
+  --popover-foreground: 220 24% 96%;
+  --primary: 258 90% 68%;
+  --primary-foreground: 224 55% 8%;
+  --secondary: 223 35% 12%;
+  --secondary-foreground: 220 24% 96%;
+  --muted: 223 32% 11%;
+  --muted-foreground: 221 13% 67%;
+  --accent: 224 32% 15%;
+  --accent-foreground: 220 24% 96%;
+  --destructive: 0 62% 48%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 223 24% 18%;
+  --input: 223 24% 18%;
+  --ring: 258 90% 68%;
+  --radius: 1rem;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
 }
 
 * {
@@ -17,12 +56,19 @@
 }
 
 html {
-  background: var(--background);
+  background:
+    radial-gradient(circle at top, rgba(124, 58, 237, 0.2), transparent 22%),
+    radial-gradient(circle at 18% 14%, rgba(59, 130, 246, 0.12), transparent 28%),
+    hsl(var(--background));
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background:
+    radial-gradient(circle at top, rgba(124, 58, 237, 0.16), transparent 22%),
+    radial-gradient(circle at 82% 8%, rgba(59, 130, 246, 0.08), transparent 24%),
+    hsl(var(--background));
+  color: hsl(var(--foreground));
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   min-height: 100vh;
 }
@@ -40,6 +86,6 @@ button {
 }
 
 ::selection {
-  background: rgba(252, 211, 77, 0.25);
-  color: #fffaf0;
+  background: rgba(139, 92, 246, 0.34);
+  color: #ffffff;
 }

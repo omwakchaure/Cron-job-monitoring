@@ -1,10 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import type { ActivityLog, WalletScheduler } from "@/lib/types";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
 import { CurrentBalanceValue, SchedulerBalanceSeed } from "@/app/current-balance";
-import type { ReactNode } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import type { ActivityLog, WalletScheduler } from "@/lib/types";
 
 type DashboardProps = {
   scheduler: WalletScheduler;
@@ -33,20 +40,18 @@ function formatTimestamp(value: string | null) {
 
 export default function WalletDashboard({
   scheduler: initialScheduler,
-  logs: initialLogs,
+  logs: _initialLogs,
   schedulers,
 }: DashboardProps) {
   const [scheduler, setScheduler] = useState(initialScheduler);
-  const [logs, setLogs] = useState(initialLogs);
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(initialScheduler.isRunning);
-  const [actionMessage, setActionMessage] = useState(
-    "Ready to manage threshold and alert settings.",
-  );
+  const [actionMessage, setActionMessage] = useState("Ready to manage threshold and alert settings.");
   const [form, setForm] = useState({
     alertThreshold: String(initialScheduler.alertThreshold),
     alertEmail: initialScheduler.alertEmail,
   });
+  void _initialLogs;
 
   const timerRef = useRef<number | null>(null);
 
@@ -74,7 +79,6 @@ export default function WalletDashboard({
     };
 
     setScheduler(data.scheduler);
-    setLogs(data.logs);
     setIsRunning(data.scheduler.isRunning);
     setForm({
       alertThreshold: String(data.scheduler.alertThreshold),
@@ -120,12 +124,7 @@ export default function WalletDashboard({
     } finally {
       setIsSaving(false);
     }
-  }, [
-    form.alertEmail,
-    form.alertThreshold,
-    reloadScheduler,
-    scheduler.id,
-  ]);
+  }, [form.alertEmail, form.alertThreshold, reloadScheduler, scheduler.id]);
 
   const toggleRunning = useCallback(
     async (nextRunning: boolean) => {
@@ -185,199 +184,170 @@ export default function WalletDashboard({
   }, [reloadScheduler]);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(255,208,112,0.16),_transparent_28%),linear-gradient(180deg,#0d0c0b_0%,#14110f_54%,#0b0a09_100%)] text-stone-100">
-      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-8 px-5 py-6 lg:px-8">
+    <div className="min-h-screen px-4 py-4 sm:px-5 sm:py-5">
+      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6">
         <SchedulerBalanceSeed scheduler={scheduler} />
-        <header className="flex flex-col gap-4 rounded-[28px] border border-white/8 bg-[#1b1815]/90 p-5 shadow-2xl shadow-black/20 backdrop-blur md:flex-row md:items-end md:justify-between">
-          <div className="space-y-2">
-            <p className="text-sm font-semibold uppercase tracking-[0.35em] text-amber-200/80">
-              Cygnus wallet monitor
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight text-stone-50 md:text-4xl">
-              {scheduler.name}
-            </h1>
-            <p className="max-w-3xl text-sm text-stone-300">
-              Monitor the stored wallet balance, adjust threshold and alert
-              email, and keep Supabase as the source of truth for every sync.
-            </p>
-          </div>
 
-          <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-stone-300 md:min-w-80">
-            <div className="flex items-center justify-between gap-6">
-              <span>Scheduler state</span>
-              <span className={isRunning ? "text-emerald-300" : "text-stone-400"}>
-                {isRunning ? "Running" : "Stopped"}
-              </span>
+        <header className="flex items-center justify-between rounded-[22px] border border-border/70 bg-card/80 px-5 py-4 shadow-2xl shadow-black/20 backdrop-blur">
+          <div className="flex items-center gap-3">
+            <div className="grid size-10 place-items-center rounded-xl bg-primary/20 text-sm font-black text-primary">
+              C
+            </div>
+            <div>
+              <div className="text-3xl font-semibold tracking-tight text-primary">Cygnus</div>
+              <div className="text-sm text-muted-foreground">Wallet monitoring</div>
             </div>
           </div>
+
+          <Badge variant={isRunning ? "success" : "secondary"} className="uppercase tracking-[0.25em]">
+            {isRunning ? "Running" : "Stopped"}
+          </Badge>
         </header>
+
+        <section className="space-y-2 px-1 sm:px-2">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+            {scheduler.name}
+          </h1>
+          
+        </section>
+
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <MetricCard
             label="Current balance"
             value={<CurrentBalanceValue scheduler={scheduler} />}
-            helper="INR"
+            helper="Live synced from the current balance context"
+            action={
+              <Button variant="outline" size="sm" onClick={() => void refreshScheduler()}>
+                Refresh
+              </Button>
+            }
           />
           <MetricCard
             label="Alert threshold"
             value={formatMoney(Number(form.alertThreshold) || scheduler.alertThreshold)}
-            helper="alert when below"
+            helper="Alert when the balance drops below this amount"
           />
-          <MetricCard label="Last checked" value={formatTimestamp(scheduler.lastCheckedAt)} helper="local time" />
+          <MetricCard
+            label="Last checked"
+            value={formatTimestamp(scheduler.lastCheckedAt)}
+            helper="Local time"
+          />
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[1.5fr_0.9fr]">
-          <div className="rounded-[30px] border border-white/8 bg-[#2a2521]/95 p-6 shadow-2xl shadow-black/20">
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.35em] text-amber-200/80">
-              Alert settings
-            </p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-50">
-              Threshold and notification controls
-            </h2>
+        <section className="grid gap-6 xl:grid-cols-[1.45fr_0.95fr]">
+          <Card className="border-border/60 bg-card/90 shadow-2xl shadow-black/20">
+            <CardHeader className="flex-row items-start justify-between gap-4">
+              <div className="space-y-1">
+                <Badge variant="warning" className="w-fit uppercase tracking-[0.25em]">
+                  Alert settings
+                </Badge>
+                <CardTitle className="text-2xl md:text-3xl">Threshold and notification controls</CardTitle>
+                <CardDescription>
+                  Update the live threshold, notification email, or scheduler state.
+                </CardDescription>
               </div>
 
-              <button
-                onClick={() => void refreshScheduler()}
-                className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-stone-100 transition hover:bg-white/10"
-              >
+              <Button variant="outline" onClick={() => void refreshScheduler()}>
                 Refresh
-              </button>
-            </div>
+              </Button>
+            </CardHeader>
 
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-stone-300">Alert threshold (INR)</span>
-                <input
-                  value={form.alertThreshold}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      alertThreshold: event.target.value,
-                    }))
-                  }
-                  className="rounded-2xl border border-white/10 bg-[#34302b] px-4 py-4 text-base text-stone-100 outline-none transition focus:border-amber-200/60"
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="alert-threshold">Alert threshold (INR)</Label>
+                  <Input
+                    id="alert-threshold"
+                    inputMode="decimal"
+                    value={form.alertThreshold}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        alertThreshold: event.target.value,
+                      }))
+                    }
                   />
-                </label>
+                </div>
 
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-stone-300">Alert email</span>
-                <input
-                  value={form.alertEmail}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      alertEmail: event.target.value,
-                    }))
-                  }
-                  className="rounded-2xl border border-white/10 bg-[#34302b] px-4 py-4 text-base text-stone-100 outline-none transition focus:border-amber-200/60"
-                />
-              </label>
-            </div>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                onClick={() => void toggleRunning(true)}
-                className="rounded-2xl bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-3 font-semibold text-stone-950 transition hover:brightness-110"
-              >
-                Start
-              </button>
-              <button
-                onClick={() => void toggleRunning(false)}
-                className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-semibold text-stone-100 transition hover:bg-white/10"
-              >
-                Stop
-              </button>
-              <button
-                onClick={() => void saveSettings()}
-                disabled={isSaving}
-                className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-semibold text-stone-100 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSaving ? "Saving..." : "Save settings"}
-              </button>
-            </div>
-
-            <div className="mt-6">
-              <div className="mb-3 flex items-center justify-between text-sm font-medium text-stone-300">
-                <span>Balance utilization</span>
-                <span>{utilization.toFixed(1)}%</span>
+                <div className="grid gap-2">
+                  <Label htmlFor="alert-email">Alert email</Label>
+                  <Input
+                    id="alert-email"
+                    type="email"
+                    value={form.alertEmail}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        alertEmail: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
               </div>
-              <div className="h-4 overflow-hidden rounded-full bg-white/5">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-300 via-amber-200 to-amber-500 transition-all duration-500"
-                  style={{ width: `${utilization}%` }}
-                />
-              </div>
-              <div className="mt-2 flex items-center justify-between text-sm text-stone-400">
-                <span>₹0</span>
-                <span>{formatMoney(scheduler.maxBalance)}</span>
-              </div>
-            </div>
 
-            <p className="mt-5 text-sm text-stone-300">{actionMessage}</p>
-          </div>
-
-          <div className="rounded-[30px] border border-white/8 bg-[#2a2521]/95 p-6 shadow-2xl shadow-black/20">
-            <p className="text-sm font-semibold uppercase tracking-[0.35em] text-amber-200/80">
-              Scheduler list
-            </p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-50">
-              Wallet scheduler
-            </h2>
-            <div className="mt-6 space-y-3">
-              {schedulers.map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/wallet/${item.id}`}
-                  className={`block rounded-2xl border px-4 py-4 transition ${
-                    item.id === scheduler.id
-                      ? "border-amber-300/50 bg-amber-300/10"
-                      : "border-white/10 bg-white/5 hover:bg-white/10"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <div className="font-semibold text-stone-50">{item.name}</div>
-                      <div className="mt-1 text-sm text-stone-400">{item.agencyId}</div>
-                    </div>
-                    <div className={item.isRunning ? "text-emerald-300" : "text-stone-400"}>
-                      {item.isRunning ? "Running" : "Stopped"}
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-
-            <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-stone-300">
-              <div className="font-semibold text-stone-50">Current source</div>
-              <div className="mt-1">{scheduler.corporateName}</div>
-              <div className="mt-3 flex items-center justify-between">
-                <span>Alert email</span>
-                <span className="font-semibold text-stone-50">{scheduler.alertEmail}</span>
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={() => void toggleRunning(true)}>Start</Button>
+                <Button variant="outline" onClick={() => void toggleRunning(false)}>
+                  Stop
+                </Button>
+                <Button variant="secondary" onClick={() => void saveSettings()} disabled={isSaving}>
+                  {isSaving ? "Saving..." : "Save settings"}
+                </Button>
               </div>
-              <div className="mt-2 flex items-center justify-between">
-                <span>Dashboard rows</span>
-                <span className="font-semibold text-stone-50">{schedulers.length}</span>
-              </div>
-            </div>
 
-            <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-stone-300">
-              <div className="font-semibold text-stone-50">Recent activity</div>
-              <div className="mt-3 space-y-3">
-                {logs.slice(0, 4).map((log) => (
-                  <div key={log.id} className="rounded-2xl border border-white/10 bg-[#1f1b18] p-3">
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="font-medium text-stone-100">{log.title}</span>
-                      <span className="text-xs uppercase tracking-[0.25em] text-stone-500">
-                        {log.level}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-xs leading-5 text-stone-400">{log.detail}</div>
-                  </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>Balance utilization</span>
+                  <span>{utilization.toFixed(1)}%</span>
+                </div>
+                <Progress value={utilization} />
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>₹0</span>
+                  <span>{formatMoney(scheduler.maxBalance)}</span>
+                </div>
+              </div>
+
+              <Separator />
+
+              <p className="text-sm text-muted-foreground">{actionMessage}</p>
+            </CardContent>
+          </Card>
+
+          <div className="space-y-6">
+            <Card className="border-border/60 bg-card/90 shadow-2xl shadow-black/20">
+              <CardHeader>
+                <Badge variant="warning" className="w-fit uppercase tracking-[0.25em]">
+                  Scheduler list
+                </Badge>
+                <CardTitle className="text-2xl">Wallet scheduler</CardTitle>
+                <CardDescription>Switch between configured schedulers.</CardDescription>
+              </CardHeader>
+
+              <CardContent className="space-y-3">
+                {schedulers.map((item) => (
+                  <Link key={item.id} href={`/wallet/${item.id}`} className="block">
+                    <Card
+                      className={
+                        item.id === scheduler.id
+                          ? "border-primary/40 bg-primary/10"
+                          : "border-border/60 bg-background/40 transition hover:border-primary/40 hover:bg-background/60"
+                      }
+                    >
+                      <CardContent className="flex items-center justify-between gap-4 p-4">
+                        <div className="space-y-1">
+                          <div className="font-semibold text-foreground">{item.name}</div>
+                          <div className="text-sm text-muted-foreground">{item.agencyId}</div>
+                        </div>
+                        <Badge variant={item.isRunning ? "success" : "secondary"}>
+                          {item.isRunning ? "Running" : "Stopped"}
+                        </Badge>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 ))}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         </section>
       </div>
@@ -389,16 +359,23 @@ function MetricCard({
   label,
   value,
   helper,
+  action,
 }: {
   label: string;
-  value: ReactNode;
+  value: React.ReactNode;
   helper: string;
+  action?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[28px] border border-white/8 bg-[#2a2521]/95 p-5 shadow-2xl shadow-black/20">
-      <div className="text-sm font-medium text-stone-400">{label}</div>
-      <div className="mt-3 text-4xl font-semibold tracking-tight text-stone-50">{value}</div>
-      <div className="mt-2 text-sm text-stone-500">{helper}</div>
-    </div>
+    <Card className="border-border/60 bg-card/90 shadow-2xl shadow-black/20">
+      <CardHeader className="space-y-2">
+        <div className="flex items-start justify-between gap-4">
+          <CardDescription>{label}</CardDescription>
+          {action ? <div>{action}</div> : null}
+        </div>
+        <CardTitle className="text-4xl tracking-tight">{value}</CardTitle>
+      </CardHeader>
+      <CardContent className="text-sm text-muted-foreground">{helper}</CardContent>
+    </Card>
   );
 }
