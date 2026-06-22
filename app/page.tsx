@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { getSchedulerById, listSchedulers } from "@/lib/wallet-monitoring";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,12 @@ export default async function HomePage() {
             </div>
           </div>
 
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <div className="grid size-10 place-items-center rounded-full border border-border bg-background/60 text-sm font-semibold text-foreground">
+              CY
+            </div>
+          </div>
         </header>
 
       

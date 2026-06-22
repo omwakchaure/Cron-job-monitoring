@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/theme-toggle";
 import type { ActivityLog, WalletScheduler } from "@/lib/types";
 
 type DashboardProps = {
@@ -199,9 +200,12 @@ export default function WalletDashboard({
             </div>
           </div>
 
-          <Badge variant={isRunning ? "success" : "secondary"} className="uppercase tracking-[0.25em]">
-            {isRunning ? "Running" : "Stopped"}
-          </Badge>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <Badge variant={isRunning ? "success" : "secondary"} className="uppercase tracking-[0.25em]">
+              {isRunning ? "Running" : "Stopped"}
+            </Badge>
+          </div>
         </header>
 
         <section className="space-y-2 px-1 sm:px-2">

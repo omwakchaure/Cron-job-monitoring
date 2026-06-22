@@ -23,6 +23,26 @@
   --radius: 1rem;
 }
 
+:root[data-theme="light"] {
+  --background: 220 25% 98%;
+  --foreground: 224 36% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 224 36% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 224 36% 10%;
+  --primary: 258 90% 68%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 18% 95%;
+  --secondary-foreground: 224 36% 10%;
+  --muted: 220 18% 95%;
+  --muted-foreground: 220 11% 42%;
+  --accent: 220 18% 94%;
+  --accent-foreground: 224 36% 10%;
+  --border: 220 16% 86%;
+  --input: 220 16% 86%;
+  --ring: 258 90% 68%;
+}
+
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -63,6 +83,14 @@ html {
   color-scheme: dark;
 }
 
+html[data-theme="light"] {
+  background:
+    radial-gradient(circle at top, rgba(124, 58, 237, 0.07), transparent 24%),
+    radial-gradient(circle at 18% 14%, rgba(59, 130, 246, 0.04), transparent 30%),
+    hsl(var(--background));
+  color-scheme: light;
+}
+
 body {
   background:
     radial-gradient(circle at top, rgba(124, 58, 237, 0.16), transparent 22%),
@@ -71,6 +99,13 @@ body {
   color: hsl(var(--foreground));
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   min-height: 100vh;
+}
+
+html[data-theme="light"] body {
+  background:
+    radial-gradient(circle at top, rgba(124, 58, 237, 0.05), transparent 22%),
+    radial-gradient(circle at 82% 8%, rgba(59, 130, 246, 0.03), transparent 24%),
+    hsl(var(--background));
 }
 
 a {
